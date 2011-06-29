@@ -4,7 +4,7 @@ import sys
 from datetime import datetime
 from pkg_resources import resource_filename
 from distutils.cmd import Command
-from distutils.errors import DistutilsOptionError
+from distutils.errors import DistutilsError, DistutilsOptionError
 
 class closure(Command):
     # Brief (40-50 characters) description of the command
@@ -20,8 +20,12 @@ class closure(Command):
         ('inputs=', None, 'additionnal JS input directories'),
         ('namespaces=', None, ('declared namespaces to take in account '
                               'for minification')),
-        ('compiler-jar=', None, 'path to closure.jar')
+        ('output-mode=', None, 'output mode: compiled(default), script, list'),
+        ('compiler-jar=', None, 'path to closure.jar'),
+        ('compiler-flags=', None, 'optional flags to pass to closure.jar'),
         ]
+
+    _VALID_OUTPUT_MODES = ('compiled', 'script', 'list')
 
     def initialize_options(self):
         self.root = None
@@ -29,10 +33,13 @@ class closure(Command):
         self.deps = None
         self.minified = None
         self.inputs = ""
-        self.namespaces = None
+        self.namespaces = ""
+        self.output_mode = None
         self.compiler_jar = None
+        self.compiler_flags = ""
 
     def finalize_options(self):
+        from distutils import log
         package_name = self.distribution.metadata.name
         is_dir = self.ensure_dirname
 
@@ -46,25 +53,27 @@ class closure(Command):
         self.deps = resource_filename(package_name, self.deps)
         self.minified = resource_filename(package_name, self.minified)
 
-        self.ensure_string_list('inputs')
-        self.inputs = [resource_filename(package_name, dirname)
-                       for dirname in self.inputs]
-        for dirname in self.inputs:
-            if not os.path.isdir(dirname):
-                raise (DistutilsOptionError,
-                       ("error in 'inputs' option: %s does not exists or is "
-                        "not a directory") % (val,))
+        self.inputs = [resource_filename(package_name, filename)
+                       for filename in self.inputs.split()]
+        for filename in self.inputs:
+            if not os.path.isfile(filename):
+                msg = ("error in 'inputs' option: %s does not exists or is "
+                       "not a directory" % (val,))
+                log.error(msg)
+                raise DistutilsOptionError, msg
+
 
         closure_tools_path = os.path.join(self.root, 'closure', 'bin', 'build')
         sys.path.append(closure_tools_path)
         try:
             import closurebuilder
         except ImportError:
-            raise DistutilsOptionError, (
-                   "root=%s is not the root of closure library: cannot find "
+            msg = ("root=%s is not the root of closure library: cannot find "
                    "closurebuilder.py in %s" % (self.root, closure_tools_path))
+            log.error(msg)
+            raise DistutilsOptionError, msg
 
-        self.ensure_string_list('namespaces')
+        self.namespaces = frozenset(self.namespaces.split())
 
         if self.compiler_jar is None:
             self.compiler_jar = resource_filename(
@@ -75,8 +84,18 @@ class closure(Command):
 
         self.ensure_filename('compiler_jar')
 
+        if self.output_mode is None:
+            self.output_mode = self._VALID_OUTPUT_MODES[0]
+        elif self.output_mode not in self._VALID_OUTPUT_MODES:
+            msg = (
+                'Invalid output-mode: %s, valid values are: %s' %
+                ', '.join(['"%s"' % mode for mode in self._VALID_OUTPUT_MODES]))
+            log.error(msg)
+            raise DistutilsOptionError, msg
+
     def run (self):
         self.build_deps()
+        self.build_minified()
 
     def build_deps(self):
         import depswriter
@@ -88,4 +107,71 @@ class closure(Command):
         out.write(depswriter.MakeDepsFile(path_to_source))
         out.close()
 
+    def build_minified(self):
+        from distutils import log
+        import closurebuilder
+        import treescan
+        import depstree
+        log.info('Building minified script "%s", mode: %s',
+                 self.minified, self.output_mode)
+        log.info('Scanning paths...')
+        sources = set(
+            (closurebuilder._PathSource(js_path)
+             for path in (self.root, self.project,)
+             for js_path in treescan.ScanTreeForJsFiles(path)
+            ))
 
+        log.info('%s sources scanned.', len(sources))
+        log.info('Building dependency tree..')
+        tree = depstree.DepsTree(sources)
+
+        input_namespaces = set(self.namespaces)
+
+        for input_path in self.inputs:
+            js_input = closurebuilder._GetInputByPath(input_path, sources)
+            if not js_input:
+                msg = 'No source matched input %s' % input_path
+                log.error(msg)
+                raise DistutilsError, msg
+
+            input_namespaces.update(js_input.provides)
+
+        if not input_namespaces:
+            msg = ('No namespaces found. At least one namespace must be '
+                   'specified with the --namespaces or --inputs flags.')
+            log.error(msg)
+            raise DistutilsError, msg
+
+        base = closurebuilder._GetClosureBaseFile(sources)
+        deps = [base] + tree.GetDependencies(input_namespaces)
+
+        if self.output_mode == 'list':
+            log.info('Listing files:')
+            log.info('\n'.join([js_source.GetPath() for js_source in deps]))
+            log.info('Build successful!')
+            return
+
+        out = open(self.minified, 'w')
+
+        if self.output_mode == 'script':
+            out.writelines([js_source.GetSource() for js_source in deps])
+            out.close()
+            log.info('Build successful!')
+            return
+
+        import jscompiler
+        compiled_source = jscompiler.Compile(
+            self.compiler_jar,
+            [js_source.GetPath() for js_source in deps],
+            self.compiler_flags)
+
+        if compiled_source is None:
+            msg = 'JavaScript compilation failed.'
+            log.error(msg)
+            raise DistutilsError, msg
+        else:
+            log.info('JavaScript compilation succeeded.')
+            out.write(compiled_source)
+            log.info('Build successful!')
+
+        out.close()
