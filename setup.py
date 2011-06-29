@@ -80,7 +80,8 @@ setup(name='distwebres',
       install_requires=['distribute',],
       entry_points={
           'distutils.commands': [
-              'compress_webresource = distwebres.compress:compress'
+              'distwebres = distwebres.compress:compress',
+              'distwebres_closure = distwebres.closure:closure',
               ],
           },
       )

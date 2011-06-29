@@ -12,13 +12,14 @@ class closure(Command):
     # List of option tuples: long name, short name (None if no short
     # name), and help string.
     user_options = [
-        ('root', None, 'closure-library root directory'),
-        ('project', None, 'main JS project directory'),
-        ('deps', None, 'JS dependency generated file for project'),
-        ('minified', None, 'minified JS file to generate'),
-        ('inputs', None, 'additionnal JS input directories'),
-        ('namespaces', None, ('declared namespaces to take in account '
+        ('root=', None, 'closure-library root directory'),
+        ('project=', None, 'main JS project directory'),
+        ('deps=', None, 'JS dependency generated file for project'),
+        ('minified=', None, 'minified JS file to generate'),
+        ('inputs=', None, 'additionnal JS input directories'),
+        ('namespaces=', None, ('declared namespaces to take in account '
                               'for minification')),
+        ('compiler-jar=', None, 'path to closure.jar')
         ]
 
     def initialize_options(self):
@@ -28,6 +29,7 @@ class closure(Command):
         self.minified = None
         self.inputs = ""
         self.namespaces = None
+        self.compiler_jar = None
 
     def finalize_options(self):
         is_dir = self.ensure_dirname
@@ -59,6 +61,15 @@ class closure(Command):
             raise DistutilsOptionError, (
                    "root=%s is not the root of closure library: cannot find "
                    "closurebuilder.py in %s" % (self.root, closure_tools_path))
+
+        self.ensure_string_list('namespaces')
+
+        if self.compiler_jar is None:
+            self.compiler_jar = resource_filename('distwebres', 'resources/closure/compiler.jar')
+        else:
+            self.compiler_jar = os.path.abspath(self.compiler_jar)
+
+        is_file('compiler_jar')
 
     def run (self):
         from distutils import log
