@@ -58,7 +58,7 @@ class closure(Command):
         for filename in self.inputs:
             if not os.path.isfile(filename):
                 msg = ("error in 'inputs' option: %s does not exists or is "
-                       "not a directory" % (val,))
+                       "not a directory" % (filename,))
                 log.error(msg)
                 raise DistutilsOptionError, msg
 
