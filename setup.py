@@ -16,6 +16,8 @@ except StopIteration:
 
 CLOSURE_URL = 'http://closure-compiler.googlecode.com/files/compiler-latest.zip'
 CLOSURE_DIR = os.path.join('resources', 'closure')
+YUI_URL = 'http://yui.zenfs.com/releases/yuicompressor/yuicompressor-2.4.6.zip'
+YUI_DIR = os.path.join('resources', 'yui')
 
 class build_py(_build_py):
 
@@ -40,6 +42,7 @@ class build_py(_build_py):
 
     def install_resources_compilers(self):
         from distutils import log
+        # closure
         base_dir = os.path.join('distwebres', CLOSURE_DIR)
         if not os.path.exists(base_dir):
             os.makedirs(base_dir)
@@ -53,6 +56,36 @@ class build_py(_build_py):
             # extract compiler, readme, licence files
             zipcontent.extractall(base_dir)
             assert(os.path.exists(os.path.join(base_dir, 'compiler.jar')))
+
+        # YUI Compressor
+        base_dir = os.path.join('distwebres', YUI_DIR)
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
+
+            log.info("downloading YUI compressor from %s" % YUI_URL)
+            f = urllib2.urlopen(YUI_URL)
+            content = StringIO(f.read())
+            f.close()
+            content.seek(0)
+            zipcontent = zipfile.ZipFile(content, 'r')
+            # extract compiler, readme, licence files
+            for filename in ('yuicompressor-2.4.6/build/yuicompressor-2.4.6.jar',
+                             'yuicompressor-2.4.6/LICENSE.TXT',
+                             'yuicompressor-2.4.6/doc/README'):
+                basename = filename.split('/')[-1]
+                dest = open(os.path.join(base_dir, basename), 'w')
+                dest.write(zipcontent.read(filename, ''))
+                dest.close()
+
+            os.rename(os.path.join(base_dir, 'yuicompressor-2.4.6.jar'),
+                      os.path.join(base_dir, 'yuicompressor.jar'))
+
+# by using our custom build_py, we can download and install compilers at install
+# time (pip install, python setup.py install, ...).
+#
+# for development we must do:
+# * python setup.py develop
+# * python setup.py build_py
 
 setup(name='distwebres',
       cmdclass={'build_py': build_py},
@@ -82,6 +115,7 @@ setup(name='distwebres',
           'distutils.commands': [
               'distwebres = distwebres.compress:compress',
               'distwebres_closure = distwebres.closure:closure',
+              'distwebres_yui = distwebres.yui:yui',
               ],
           },
       )
