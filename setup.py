@@ -91,7 +91,7 @@ setup(name='distwebres',
       cmdclass={'build_py': build_py},
       version=version,
       description="Distutils extension to compress JS and CSS files for package distribution",
-      long_description=open("README.txt").read() + "\n" +
+      long_description=open("README.rst").read() + "\n" +
                        open(os.path.join("docs", "HISTORY.txt")).read(),
       # Get more strings from
       # http://pypi.python.org/pypi?:action=list_classifiers
