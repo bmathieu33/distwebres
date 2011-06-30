@@ -7,14 +7,16 @@ class compress(Command):
 
     # List of option tuples: long name, short name (None if no short
     # name), and help string.
-    user_options = [('compressor=', None, "compressor to use"),]
+    user_options = [('compressors=', None, "compressors to use"),]
 
     def initialize_options (self):
-        self.compressor = None
+        self.compressors = ""
 
     def finalize_options (self):
-        if self.compressor is None:
+        self.compressors = self.compressors.split()
+        if not self.compressors:
             raise ValueError, "No compressor defined"
 
     def run (self):
-        self.run_command(self.compressor)
+        for command in self.compressors:
+            self.run_command(command)
