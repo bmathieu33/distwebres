@@ -3,7 +3,7 @@ from distutils.cmd import Command
 
 class compress(Command):
     # Brief (40-50 characters) description of the command
-    description = ""
+    description = "Use externals JS and CSS compressors for package JS/CSS resources"
 
     # List of option tuples: long name, short name (None if no short
     # name), and help string.
