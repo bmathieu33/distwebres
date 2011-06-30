@@ -93,7 +93,7 @@ class closure(Command):
             log.error(msg)
             raise DistutilsOptionError, msg
 
-    def run (self):
+    def run(self):
         self.build_deps()
         self.build_minified()
 
