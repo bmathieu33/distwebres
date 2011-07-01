@@ -12,7 +12,7 @@ DEFAULT_JAR = 'resources/yui/yuicompressor.jar'
 class yui(Command):
     # Brief (40-50 characters) description of the command
     description = ("Concatenate and minify JS and CSS resources files with "
-                   "YUI compressor"
+                   "YUI compressor")
 
     # List of option tuples: long name, short name (None if no short
     # name), and help string.
