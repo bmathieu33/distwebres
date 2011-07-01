@@ -47,8 +47,10 @@ Suppose you have the following package layout::
     my.package
     ├── setup.py
     └── my
+        ├── __init__.py
         └── package
             ├── __init__.py
+            ...
             └── resources
                 ├── css
                 │   ├── style-part-1.css
@@ -88,7 +90,9 @@ file path like this::
 
     from pkg_resources import resource_filename
     css_dir = resource_filename('my.package', 'resources/css')
-    effects_fullpathname = resource_filename('my.package', 'resources/js/effects.js')
+    effects_fullpathname = resource_filename(
+                               'my.package', 
+                               'resources/js/effects.js')
 
 Options reference
 =================
